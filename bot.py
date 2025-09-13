@@ -1,18 +1,21 @@
 import requests
 import json
+import schedule
 import time
+import threading
 import os
-import asyncio
-from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from hypercorn.asyncio import serve
-from hypercorn.config import Config
 
 BOT_TOKEN = "8382132782:AAEUK3WKhF7HzNlvOLVhl51O500JEE5u8Lg"
-app = ApplicationBuilder().token(BOT_TOKEN).build()
 WATCHLIST_FILE = "watchlist.json"
 CHECK_INTERVAL = 20  # minutes
+
+flask_app = Flask(__name__)
+
+@flask_app.route("/")
+def home():
+    return "Bot running ✅"
 
 # Load or initialize watchlists (per user)
 try:
@@ -108,6 +111,14 @@ async def check_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = check_account_status(username)
     await update.message.reply_text(f"🔎 {username} → {status}")
 
+# Store chat IDs whenever someone interacts with the bot
+async def register_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    if "chat_ids" not in context.application.bot_data:
+        context.application.bot_data["chat_ids"] = []
+    if chat_id not in context.application.bot_data["chat_ids"]:
+        context.application.bot_data["chat_ids"].append(chat_id)
+
 # Background monitoring
 async def monitor_accounts(context: ContextTypes.DEFAULT_TYPE):
     for chat_id, usernames in watchlists.items():
@@ -118,14 +129,12 @@ async def monitor_accounts(context: ContextTypes.DEFAULT_TYPE):
                     chat_id=int(chat_id),
                     text=f"⚠ ALERT: {username} is {status}"
                 )
+                
+def run_scheduler(application):
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
-# Store chat IDs whenever someone interacts with the bot
-async def register_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    if "chat_ids" not in context.application.bot_data:
-        context.application.bot_data["chat_ids"] = []
-    if chat_id not in context.application.bot_data["chat_ids"]:
-        context.application.bot_data["chat_ids"].append(chat_id)
 
 # Main
 app = ApplicationBuilder().token(BOT_TOKEN).build()
@@ -137,24 +146,16 @@ app.add_handler(CommandHandler("list", list_accounts))
 app.add_handler(CommandHandler("check", check_account))
 app.add_handler(CommandHandler("start", register_chat))  # registers chat automatically
 
-app.job_queue.run_repeating(monitor_accounts, interval=CHECK_INTERVAL * 60, first=10)
-
-flask_app = Flask(__name__)
-
-@flask_app.route("/")
-def home():
-    return "Bot running ✅"
-
-async def main():
-    # start Telegram bot
-    bot_task = asyncio.create_task(app.run_polling())
-
-    # start Flask server
-    config = Config()
-    config.bind = [f"0.0.0.0:{os.environ.get('PORT', 5000)}"]
-    flask_task = asyncio.create_task(serve(flask_app, config))
-
-    await asyncio.gather(bot_task, flask_task)
+schedule.every(CHECK_INTERVAL).minutes.do(
+    lambda: app.create_task(monitor_accounts(app))
+)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Start scheduler in thread
+    threading.Thread(target=run_scheduler, args=(app,), daemon=True).start()
+    # Start Flask web server in thread
+    threading.Thread(
+        target=lambda: flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    ).start()
+    # Start Telegram bot polling
+    app.run_polling()
