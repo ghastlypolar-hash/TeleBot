@@ -133,8 +133,6 @@ app.add_handler(CommandHandler("list", list_accounts))
 app.add_handler(CommandHandler("check", check_account))
 app.add_handler(CommandHandler("start", register_chat))  # registers chat automatically
 
-app.job_queue.run_repeating(monitor_accounts, interval=CHECK_INTERVAL * 60, first=10)
-
 flask_app = Flask(__name__)
 
 @flask_app.route("/")
@@ -142,5 +140,13 @@ def home():
     return "Bot running ✅"
     
 if __name__ == "__main__":
-    # Run monitor every CHECK_INTERVAL minutes
-    app.run_polling()
+    # Add the job queue here (instead of top-level)
+    app.job_queue.run_repeating(monitor_accounts, interval=CHECK_INTERVAL * 60, first=10)
+
+    # Run Telegram bot in a thread
+    import threading
+    threading.Thread(target=lambda: app.run_polling()).start()
+
+    # Run Flask for uptime monitoring
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
