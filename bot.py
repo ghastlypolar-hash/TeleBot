@@ -1,12 +1,16 @@
 import requests
 import json
 import time
-import threading
+import os
+import asyncio
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from hypercorn.asyncio import serve
+from hypercorn.config import Config
 
 BOT_TOKEN = "8382132782:AAEUK3WKhF7HzNlvOLVhl51O500JEE5u8Lg"
+app = ApplicationBuilder().token(BOT_TOKEN).build()
 WATCHLIST_FILE = "watchlist.json"
 CHECK_INTERVAL = 20  # minutes
 
@@ -140,16 +144,17 @@ flask_app = Flask(__name__)
 @flask_app.route("/")
 def home():
     return "Bot running ✅"
-    
+
+async def main():
+    # start Telegram bot
+    bot_task = asyncio.create_task(app.run_polling())
+
+    # start Flask server
+    config = Config()
+    config.bind = [f"0.0.0.0:{os.environ.get('PORT', 5000)}"]
+    flask_task = asyncio.create_task(serve(flask_app, config))
+
+    await asyncio.gather(bot_task, flask_task)
+
 if __name__ == "__main__":
-    # Add the job queue here (instead of top-level)
-
-
-    # Run Telegram bot in a thread
-    import threading
-    threading.Thread(target=lambda: app.run_polling()).start()
-
-    # Run Flask for uptime monitoring
-    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-
+    asyncio.run(main())
