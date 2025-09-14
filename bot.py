@@ -55,7 +55,10 @@ def check_account_status(username):
         ]
         if any(phrase in page_text for phrase in unavailable_phrases):
             return "BANNED / SUSPENDED"
-
+            
+        if "login" in page_text and "instagram" in page_text and "password" in page_text:
+            return "LOGIN REQUIRED (IGNORE)"
+            
         # Case 3: Check if page contains Instagram profile metadata
         if 'og:title' not in page_text and 'profilepage_' not in page_text:
             return "BANNED / SUSPENDED"
@@ -160,4 +163,5 @@ if __name__ == "__main__":
     ).start()
     # Start Telegram bot polling
     app.run_polling()
+
 
