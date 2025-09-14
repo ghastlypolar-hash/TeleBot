@@ -33,19 +33,10 @@ def save_watchlists():
 # Check Instagram account status
 def check_account_status(username):
     profile_url = f"https://www.instagram.com/{username}/?__a=1&__d=dis"
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Referer": "https://www.google.com/",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1"
-}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept-Language": "en-US,en;q=0.9"
+    }
 
     try:
         r = requests.get(profile_url, headers=headers, timeout=10)
@@ -169,6 +160,7 @@ if __name__ == "__main__":
     ).start()
     # Start Telegram bot polling
     app.run_polling()
+
 
 
 
