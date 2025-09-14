@@ -32,7 +32,7 @@ def save_watchlists():
 
 # Check Instagram account status
 def check_account_status(username):
-    profile_url = f"https://www.instagram.com/{username}/"
+    profile_url = f"https://www.instagram.com/{username}/?__a=1&__d=dis"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         "Accept-Language": "en-US,en;q=0.9"
@@ -55,9 +55,6 @@ def check_account_status(username):
         ]
         if any(phrase in page_text for phrase in unavailable_phrases):
             return "BANNED / SUSPENDED"
-            
-        if "login" in page_text and "instagram" in page_text and "password" in page_text:
-            return "LOGIN REQUIRED (IGNORE)"
             
         # Case 3: Check if page contains Instagram profile metadata
         if 'og:title' not in page_text and 'profilepage_' not in page_text:
@@ -163,5 +160,6 @@ if __name__ == "__main__":
     ).start()
     # Start Telegram bot polling
     app.run_polling()
+
 
 
